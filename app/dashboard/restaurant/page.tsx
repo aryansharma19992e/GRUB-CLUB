@@ -251,7 +251,12 @@ export default function RestaurantDashboard() {
                       <div key={order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium">Order #{order._id} - {order.items.map(item => item.name).join(', ')}</p>
-                          <p className="text-sm text-gray-600">Customer: {order.customerName}</p>
+                          <p className="text-sm text-gray-600">
+                            Customer: {order.customerName} ({order.customerPhone})
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Address: {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
+                          </p>
                           <Badge variant="secondary" className={statusInfo.color}>{statusInfo.label}</Badge>
                         </div>
                         {nextStatus && (

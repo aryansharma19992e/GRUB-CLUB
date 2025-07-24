@@ -103,24 +103,40 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentRestaurants.map(rest => (
-                  <div key={rest._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">New Restaurant Registration</p>
-                      <p className="text-sm text-gray-600">{rest.name} joined the platform</p>
+                {(() => {
+                  // Combine and sort recent users and restaurants by createdAt
+                  const activities = [
+                    ...recentRestaurants.map(rest => ({
+                      type: 'restaurant',
+                      _id: rest._id,
+                      name: rest.name,
+                      createdAt: rest.createdAt,
+                    })),
+                    ...recentUsers.map(user => ({
+                      type: 'user',
+                      _id: user._id,
+                      name: user.name,
+                      createdAt: user.createdAt,
+                    })),
+                  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+                  return activities.map(activity => (
+                    <div key={activity.type + '-' + activity._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          {activity.type === 'restaurant' ? 'New Restaurant Registration' : 'User Registration'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {activity.type === 'restaurant'
+                            ? `${activity.name} joined the platform`
+                            : `${activity.name} signed up`}
+                        </p>
+                      </div>
+                      <span className={activity.type === 'restaurant' ? 'text-green-600 font-medium' : 'text-blue-600 font-medium'}>
+                        {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                      </span>
                     </div>
-                    <span className="text-green-600 font-medium">{formatDistanceToNow(new Date(rest.createdAt), { addSuffix: true })}</span>
-                  </div>
-                ))}
-                {recentUsers.map(user => (
-                  <div key={user._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium">User Registration</p>
-                      <p className="text-sm text-gray-600">{user.name} signed up</p>
-                    </div>
-                    <span className="text-blue-600 font-medium">{formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })}</span>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </CardContent>
           </Card>

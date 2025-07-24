@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, Minus, Trash2, MapPin, Clock, CreditCard, Wallet, Chef
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function CartPage() {
   const { cart, addToCart, removeFromCart, clearCart } = useCart();
@@ -20,6 +21,15 @@ export default function CartPage() {
   const [error, setError] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [address, setAddress] = useState({
+    street: 'Thapar University, Hostel Block A',
+    city: 'Patiala',
+    state: 'Punjab',
+    zipCode: '147004',
+  });
+  const [addressDraft, setAddressDraft] = useState(address);
+  const [fullUser, setFullUser] = useState(null);
 
   useEffect(() => {
     const fetchCartItems = async () => {
@@ -45,6 +55,22 @@ export default function CartPage() {
     fetchCartItems();
   }, [cart]);
 
+  useEffect(() => {
+    // Fetch full user profile for name/phone
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setFullUser(data.user);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    if (user) fetchProfile();
+  }, [user]);
+
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * (cart[item._id || item.id] || 0), 0);
   const deliveryFee = 0;
   const taxes = Math.round(subtotal * 0.05);
@@ -52,6 +78,18 @@ export default function CartPage() {
 
   // Helper: group items by restaurantId (assuming all items are from one restaurant for now)
   const restaurantId = cartItems.length > 0 ? cartItems[0].restaurantId : null;
+
+  const handleOpenAddressModal = () => {
+    setAddressDraft(address);
+    setAddressModalOpen(true);
+  };
+  const handleAddressChange = (e) => {
+    setAddressDraft({ ...addressDraft, [e.target.name]: e.target.value });
+  };
+  const handleSaveAddress = () => {
+    setAddress(addressDraft);
+    setAddressModalOpen(false);
+  };
 
   const handlePlaceOrder = async () => {
     if (!user) {
@@ -72,12 +110,9 @@ export default function CartPage() {
         userId: String(user._id || user.id),
         restaurantId: String(restaurantId),
         items: orderItems,
-        deliveryAddress: {
-          street: 'Thapar University, Hostel Block A',
-          city: 'Patiala',
-          state: 'Punjab',
-          zipCode: '147004',
-        },
+        deliveryAddress: address,
+        customerName: fullUser?.name || user.name || '',
+        customerPhone: fullUser?.phone || user.phone || '',
         paymentMethod: 'cash',
       };
       console.log('Order API request body:', orderBody);
@@ -138,10 +173,10 @@ export default function CartPage() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Thapar University, Hostel Block A</p>
-                    <p className="text-sm text-gray-600">Patiala, Punjab 147004</p>
+                    <p className="font-medium">{address.street}</p>
+                    <p className="text-sm text-gray-600">{address.city}, {address.state} {address.zipCode}</p>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleOpenAddressModal}>
                     Change
                   </Button>
                 </div>
@@ -298,6 +333,48 @@ export default function CartPage() {
           )}
         </div>
       </div>
+      {/* Address Change Modal */}
+      <Dialog open={addressModalOpen} onOpenChange={setAddressModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Delivery Address</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              label="Street"
+              name="street"
+              placeholder="Street address"
+              value={addressDraft.street}
+              onChange={handleAddressChange}
+            />
+            <Input
+              label="City"
+              name="city"
+              placeholder="City"
+              value={addressDraft.city}
+              onChange={handleAddressChange}
+            />
+            <Input
+              label="State"
+              name="state"
+              placeholder="State"
+              value={addressDraft.state}
+              onChange={handleAddressChange}
+            />
+            <Input
+              label="Zip Code"
+              name="zipCode"
+              placeholder="Zip Code"
+              value={addressDraft.zipCode}
+              onChange={handleAddressChange}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddressModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveAddress}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

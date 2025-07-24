@@ -23,6 +23,8 @@ const createOrderSchema = z.object({
       longitude: z.number(),
     }).optional(),
   }),
+  customerName: z.string().min(1, 'Customer name is required'),
+  customerPhone: z.string().min(1, 'Customer phone is required'),
   deliveryInstructions: z.string().optional(),
   paymentMethod: z.enum(['cash', 'card', 'upi', 'wallet']),
 })
@@ -144,6 +146,8 @@ export async function POST(request: NextRequest) {
       total,
       paymentMethod: validatedData.paymentMethod,
       deliveryAddress: validatedData.deliveryAddress,
+      customerName: validatedData.customerName,
+      customerPhone: validatedData.customerPhone,
       deliveryInstructions: validatedData.deliveryInstructions,
       estimatedDeliveryTime,
       orderTime: new Date(),

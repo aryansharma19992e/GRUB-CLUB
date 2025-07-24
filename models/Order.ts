@@ -21,6 +21,8 @@ export interface IOrder extends Document {
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled'
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded'
   paymentMethod: 'cash' | 'card' | 'upi' | 'wallet'
+  customerName: string
+  customerPhone: string
   deliveryAddress: {
     street: string
     city: string
@@ -130,6 +132,16 @@ const orderSchema = new Schema<IOrder>(
       type: String,
       enum: ['cash', 'card', 'upi', 'wallet'],
       required: [true, 'Payment method is required'],
+    },
+    customerName: {
+      type: String,
+      required: [true, 'Customer name is required'],
+      trim: true,
+    },
+    customerPhone: {
+      type: String,
+      required: [true, 'Customer phone is required'],
+      trim: true,
     },
     deliveryAddress: {
       street: {

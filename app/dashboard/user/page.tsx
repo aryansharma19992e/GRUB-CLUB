@@ -255,6 +255,12 @@ export default function UserDashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              <Link href="/restaurants">
+                <Button className="bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-lg border-0 font-semibold px-6 py-3" variant="default">
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  Browse Restaurants
+                </Button>
+              </Link>
               <Link href="/profile/edit">
                 <Avatar className="h-16 w-16 cursor-pointer">
                   <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
@@ -413,7 +419,7 @@ export default function UserDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary" className={statusInfo.color}>{statusInfo.label}</Badge>
-                          {order.status === 'out_for_delivery' && (
+                          {['ready', 'out_for_delivery'].includes(order.status) && (
                             <Button size="sm" variant="outline" onClick={() => handleOrderReceived(order._id)}>
                               Order Received
                             </Button>
@@ -438,12 +444,6 @@ export default function UserDashboard() {
             </CardHeader>
             <CardContent>
                               <div className="space-y-3">
-                  <Link href="/restaurants">
-                    <Button className="w-full justify-start" variant="outline">
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Browse Restaurants
-                    </Button>
-                  </Link>
                   <Link href="/orders/history">
                     <Button className="w-full justify-start" variant="outline">
                       <Package className="h-4 w-4 mr-2" />
