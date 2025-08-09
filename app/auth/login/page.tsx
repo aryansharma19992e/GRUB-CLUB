@@ -46,10 +46,11 @@ export default function LoginPage() {
           description: "Login successful!",
         })
         
-        // Redirect based on role
+        // Redirect based on role (map UI role to database role)
         if (role === "user") {
           router.push("/dashboard/user")
         } else if (role === "restaurant") {
+          // For restaurant owners, we need to check if the user actually has restaurant_owner role
           router.push("/dashboard/restaurant")
         } else if (role === "admin") {
           router.push("/dashboard/admin")
@@ -75,7 +76,6 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
-
   const getRoleIcon = (roleType: string) => {
     switch (roleType) {
       case "user":

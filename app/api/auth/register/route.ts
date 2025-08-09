@@ -19,6 +19,7 @@ const registerSchema = z.object({
   role: z.enum(['user', 'restaurant_owner', 'admin']).default('user'),
   address: z.string().optional(),
   restaurantName: z.string().min(2, 'Restaurant name is required for owners').optional(),
+  image: z.string().optional(),
   inviteCode: z.string().optional(),
   adminCode: z.string().optional(),
 })
@@ -42,10 +43,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid admin code' }, { status: 403 });
       }
     }
-    // If restaurant_owner, require restaurantName
-    if (validatedData.role === 'restaurant_owner' && !validatedData.restaurantName) {
-      return NextResponse.json({ error: 'Restaurant name is required' }, { status: 400 });
-    }
+ 
     console.log('✅ Input validation passed')
     
     // Check if user already exists in database
@@ -56,6 +54,11 @@ export async function POST(request: NextRequest) {
         { error: 'User with this email already exists' },
         { status: 400 }
       )
+    }
+    
+    // If restaurant_owner, require restaurantName
+    if (validatedData.role === 'restaurant_owner' && !validatedData.restaurantName) {
+      return NextResponse.json({ error: 'Restaurant name is required' }, { status: 400 });
     }
     
     // Hash password
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
           address: validatedData.address || 'Your address',
           phone: validatedData.phone,
           email: validatedData.email,
+          image: validatedData.image || '/placeholder.jpg',
           openingHours: '10:00-22:00',
           deliveryTime: '30 min',
           distance: '1 km',
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
       updatedAt: user.updatedAt,
     }
     
-    console.log('📤 Returning user data:', userResponse)
+        console.log('📤 Returning user data:', userResponse)
     
     if (validatedData.role === 'restaurant_owner' || validatedData.role === 'restaurant') {
       if (!validatedData.inviteCode) {

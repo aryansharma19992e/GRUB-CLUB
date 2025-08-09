@@ -26,6 +26,7 @@ export default function SignupPage() {
     phone: "",
     restaurantName: "",
     address: "",
+    image: "",
   })
   const [inviteCode, setInviteCode] = useState('');
   const [adminCode, setAdminCode] = useState('');
@@ -68,6 +69,7 @@ export default function SignupPage() {
         ...(role === 'restaurant' && {
           address: formData.address,
           restaurantName: formData.restaurantName,
+          image: formData.image,
           inviteCode,
         }),
         ...(role === 'admin' && { adminCode }),
@@ -246,17 +248,41 @@ export default function SignupPage() {
             </div>
 
             {role === "restaurant" && (
-              <div className="space-y-2">
-                <Label htmlFor="address">Restaurant Address</Label>
-                <Input
-                  id="address"
-                  type="text"
-                  placeholder="Enter restaurant address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Restaurant Address</Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="Enter restaurant address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="image">Restaurant Photo</Label>
+                  <input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setFormData((prev) => ({ ...prev, image: reader.result as string }))
+                      }
+                      reader.readAsDataURL(file)
+                    }}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+                  />
+                  {formData.image && (
+                    <img src={formData.image} alt="Preview" className="mt-2 h-24 w-full object-cover rounded" />
+                  )}
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

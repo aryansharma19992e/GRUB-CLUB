@@ -82,7 +82,21 @@ export default function RestaurantPage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={async () => {
+                try {
+                  const res = await fetch('/api/user/favorites', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+                    },
+                    body: JSON.stringify({ restaurantId }),
+                  })
+                  if (!res.ok) throw new Error('Failed to add favorite')
+                } catch (e) {
+                  console.error(e)
+                }
+              }}>
                 <Heart className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="sm">
@@ -166,14 +180,7 @@ export default function RestaurantPage() {
                   {Array.isArray(items) && items.map((item) => (
                     <Card key={item._id || item.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <div className="flex items-start space-x-4">
-                          <Image
-                            src={item.image || "/placeholder.svg"}
-                            alt={item.name}
-                            width={100}
-                            height={100}
-                            className="w-24 h-24 object-cover rounded-lg"
-                          />
+                        <div className="flex items-start">
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
                               <div>

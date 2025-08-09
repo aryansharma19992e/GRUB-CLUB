@@ -16,6 +16,7 @@ const seedData = async () => {
     await Restaurant.deleteMany({})
     await MenuItem.deleteMany({})
     await RestaurantTag.deleteMany({})
+    await RestaurantUniqueCode.deleteMany({})
     console.log('🗑️  Cleared existing data')
 
     // Create users (minimal, just for ownerId references)

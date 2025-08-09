@@ -97,32 +97,36 @@ export default function RestaurantsPage() {
         </div>
 
         {/* Restaurants Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRestaurants.map((restaurant) => (
             <Link key={restaurant._id} href={`/restaurant/${restaurant._id}`}>
-              <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer">
-                <CardContent className="p-0">
+              <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer h-full flex flex-col">
+                <CardContent className="p-0 flex flex-col h-full">
                   <div className="relative">
                     <Image
-                      src={restaurant.image || "/placeholder.svg"}
+                      src={restaurant.image || "/placeholder.jpg"}
                       alt={restaurant.name}
                       width={300}
                       height={200}
                       className="w-full h-48 object-cover rounded-t-lg"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.jpg";
+                      }}
                     />
                     <div className="absolute top-3 right-3">
                       <Badge className="bg-white text-gray-900 hover:bg-white">{restaurant.priceRange}</Badge>
                     </div>
                   </div>
-                  <div className="p-4">
+                  <div className="p-4 flex flex-col flex-grow">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-bold text-lg text-gray-900">{restaurant.name}</h3>
-                      <div className="flex items-center space-x-1">
+                      <h3 className="font-bold text-lg text-gray-900 truncate flex-1 mr-2">{restaurant.name}</h3>
+                      <div className="flex items-center space-x-1 flex-shrink-0">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                         <span className="font-semibold text-sm">{restaurant.rating}</span>
                       </div>
                     </div>
-                    <p className="text-gray-600 mb-3">{restaurant.cuisine}</p>
+                    <p className="text-gray-600 mb-3 truncate">{restaurant.cuisine}</p>
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
                       <div className="flex items-center space-x-1">
                         <Clock className="w-4 h-4" />
@@ -133,12 +137,18 @@ export default function RestaurantsPage() {
                         <span>{restaurant.distance}</span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {restaurant.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {tag}
+                    <div className="flex flex-wrap gap-1 mt-auto">
+                      {restaurant.tags && restaurant.tags.length > 0 ? (
+                        restaurant.tags.slice(0, 2).map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Popular
                         </Badge>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </CardContent>

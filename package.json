@@ -8,11 +8,7 @@
     "lint": "next lint",
     "start": "next start",
     "seed": "tsx lib/seed.ts",
-    "seed:db": "node scripts/seed-db.js",
-    "seed:quick": "node scripts/quick-seed.js",
-    "setup": "node scripts/setup-env.js",
-    "setup:db": "node scripts/setup-db.js",
-    "test:db": "node scripts/test-connection.js"
+    "setup": "node scripts/setup-env.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

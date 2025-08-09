@@ -8,6 +8,7 @@ export interface IUser extends Document {
   address?: string
   restaurantName?: string
   role: 'user' | 'restaurant_owner' | 'admin'
+  favoriteRestaurants?: mongoose.Types.ObjectId[]
   createdAt: Date
   updatedAt: Date
 }
@@ -51,6 +52,7 @@ const userSchema = new Schema<IUser>(
       enum: ['user', 'restaurant_owner', 'admin'],
       default: 'user',
     },
+    favoriteRestaurants: [{ type: Schema.Types.ObjectId, ref: 'Restaurant' }],
   },
   {
     timestamps: true,
