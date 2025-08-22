@@ -43,4 +43,31 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await dbConnect()
+    
+    const { id } = params
+    
+    // Use the safeDelete method to properly clean up the restaurant
+    const result = await Restaurant.safeDelete(id)
+    
+    return NextResponse.json(result, { status: 200 })
+    
+  } catch (error) {
+    console.error('❌ Restaurant deletion error:', error)
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to delete restaurant', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    )
+  }
 } 

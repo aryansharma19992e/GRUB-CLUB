@@ -4,11 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Store, ShoppingCart, TrendingUp, Clock } from "lucide-react"
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 
 export default function RestaurantDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [restaurant, setRestaurant] = useState(null);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,22 +37,76 @@ export default function RestaurantDashboard() {
   const handleStatusChange = async (order, nextStatus) => {
     const orderId = order._id; // Always use _id for MongoDB
     setActionLoading((prev) => ({ ...prev, [orderId]: true }));
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    await fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    // Refresh all active orders
-    if (restaurant) {
-      fetch(`/api/orders?restaurantId=${restaurant._id || restaurant.id}&status=pending,ready,out_for_delivery`)
-        .then(res => res.json())
-        .then(data => setPendingOrders(data.orders || []));
+    
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update order status');
+      }
+
+      // Update the local state immediately for instant UI update
+      setPendingOrders(prevOrders => 
+        prevOrders.map(prevOrder => 
+          prevOrder._id === orderId 
+            ? { ...prevOrder, status: nextStatus }
+            : prevOrder
+        )
+      );
+
+      // Also update recentOrders if it exists
+      if (recentOrders) {
+        setRecentOrders(prevOrders => 
+          prevOrders.map(prevOrder => 
+            prevOrder._id === orderId 
+              ? { ...prevOrder, status: nextStatus }
+              : prevOrder
+          )
+        );
+      }
+
+      // Show success toast
+      const statusLabels = {
+        'ready': 'Accepted',
+        'out_for_delivery': 'Out for Delivery',
+        'delivered': 'Delivered'
+      };
+      toast({
+        title: `Order ${statusLabels[nextStatus] || nextStatus}`,
+        description: `Order #${orderId.slice(-8)} status updated successfully`,
+      });
+
+      // Optional: Refresh from server to ensure consistency (in background)
+      if (restaurant) {
+        fetch(`/api/orders?restaurantId=${restaurant._id || restaurant.id}&status=pending,ready,out_for_delivery`)
+          .then(res => res.json())
+          .then(data => {
+            // Only update if there are actual changes
+            if (JSON.stringify(data.orders) !== JSON.stringify(pendingOrders)) {
+              setPendingOrders(data.orders || []);
+            }
+          })
+          .catch(err => console.log('Background refresh failed:', err));
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      // Show error toast
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update order status. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [orderId]: false }));
     }
-    setActionLoading((prev) => ({ ...prev, [orderId]: false }));
   };
 
   const getStatusLabel = (status) => {
@@ -248,20 +304,70 @@ export default function RestaurantDashboard() {
                       buttonLabel = 'Out for Delivery';
                     }
                     return (
-                      <div key={order._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">Order #{order._id} - {order.items.map(item => item.name).join(', ')}</p>
-                          <p className="text-sm text-gray-600">
+                      <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-l-orange-500 hover:shadow-md transition-all">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="font-medium text-gray-900">Order #{order._id.slice(-8)}</p>
+                            <Badge variant="secondary" className={statusInfo.color}>{statusInfo.label}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-700 mb-1">
+                            {order.items.map(item => item.name).join(', ')}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-1">
                             Customer: {order.customerName} ({order.customerPhone})
                           </p>
                           <p className="text-xs text-gray-500">
                             Address: {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
                           </p>
-                          <Badge variant="secondary" className={statusInfo.color}>{statusInfo.label}</Badge>
+                          {nextStatus && (
+                            <div className="mt-2 text-xs text-blue-600">
+                              Next: {buttonLabel} → {getStatusLabel(nextStatus).label}
+                            </div>
+                          )}
+                          {/* Status Flow Indicator */}
+                          <div className="mt-3 flex items-center space-x-2">
+                            {['pending', 'ready', 'out_for_delivery', 'delivered'].map((status, index) => (
+                              <div key={status} className="flex items-center">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  order.status === status 
+                                    ? 'bg-orange-500' 
+                                    : ['pending', 'ready', 'out_for_delivery'].includes(order.status) && ['pending', 'ready', 'out_for_delivery'].indexOf(status) <= ['pending', 'ready', 'out_for_delivery'].indexOf(order.status)
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-300'
+                                }`} />
+                                {index < 3 && (
+                                  <div className={`w-4 h-1 mx-1 ${
+                                    ['pending', 'ready', 'out_for_delivery'].includes(order.status) && ['pending', 'ready', 'out_for_delivery'].indexOf(status) < ['pending', 'ready', 'out_for_delivery'].indexOf(order.status)
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-300'
+                                  }`} />
+                                )}
+                              </div>
+                            ))}
+                            <span className="text-xs text-gray-500 ml-2">
+                              {order.status === 'pending' && 'Order Placed'}
+                              {order.status === 'ready' && 'Accepted'}
+                              {order.status === 'out_for_delivery' && 'On the Way'}
+                              {order.status === 'delivered' && 'Delivered'}
+                            </span>
+                          </div>
                         </div>
                         {nextStatus && (
-                          <Button size="sm" variant="outline" onClick={() => handleStatusChange(order, nextStatus)} disabled={actionLoading[order._id]}>
-                            {actionLoading[order._id] ? 'Updating...' : buttonLabel}
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleStatusChange(order, nextStatus)} 
+                            disabled={actionLoading[order._id]}
+                            className="ml-4 min-w-[100px] hover:bg-orange-50 hover:border-orange-300"
+                          >
+                            {actionLoading[order._id] ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mr-2"></div>
+                                Updating...
+                              </div>
+                            ) : (
+                              buttonLabel
+                            )}
                           </Button>
                         )}
                       </div>

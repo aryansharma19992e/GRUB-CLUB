@@ -145,4 +145,47 @@ restaurantSchema.index({ ownerId: 1 })
 restaurantSchema.index({ rating: -1 })
 restaurantSchema.index({ coordinates: '2dsphere' })
 
+// Pre-save middleware to validate ownerId reference
+restaurantSchema.pre('save', async function(next) {
+  if (this.isModified('ownerId')) {
+    try {
+      const User = mongoose.model('User')
+      const owner = await User.findById(this.ownerId)
+      if (!owner) {
+        return next(new Error('Owner ID does not reference a valid user'))
+      }
+    } catch (error) {
+      return next(error)
+    }
+  }
+  next()
+})
+
+// Static method to safely delete restaurant and clean up related data
+restaurantSchema.statics.safeDelete = async function(restaurantId: string) {
+  try {
+    const restaurant = await this.findById(restaurantId)
+    if (!restaurant) {
+      throw new Error('Restaurant not found')
+    }
+
+    // Delete related menu items
+    const MenuItem = mongoose.model('MenuItem')
+    await MenuItem.deleteMany({ restaurantId: restaurant._id })
+
+    // Delete related orders (if any)
+    const Order = mongoose.model('Order')
+    if (Order) {
+      await Order.deleteMany({ restaurantId: restaurant._id })
+    }
+
+    // Delete the restaurant
+    await this.findByIdAndDelete(restaurantId)
+    
+    return { success: true, message: 'Restaurant and related data deleted successfully' }
+  } catch (error) {
+    throw new Error(`Failed to delete restaurant: ${error.message}`)
+  }
+}
+
 export default mongoose.models.Restaurant || mongoose.model<IRestaurant>('Restaurant', restaurantSchema) 

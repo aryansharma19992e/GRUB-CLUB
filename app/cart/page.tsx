@@ -216,15 +216,6 @@ export default function CartPage() {
                           <div>
                             <div className="flex items-center space-x-2 mb-1">
                               <h3 className="font-medium">{item.name}</h3>
-                              {item.isVegetarian ? (
-                                <div className="w-3 h-3 border border-green-500 flex items-center justify-center">
-                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                                </div>
-                              ) : (
-                                <div className="w-3 h-3 border border-red-500 flex items-center justify-center">
-                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                                </div>
-                              )}
                             </div>
                             <p className="text-sm text-gray-600">{item.restaurantName || ''}</p>
                             <p className="font-medium text-gray-900">₹{item.price}</p>

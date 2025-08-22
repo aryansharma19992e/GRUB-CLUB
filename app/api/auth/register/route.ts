@@ -78,26 +78,30 @@ export async function POST(request: NextRequest) {
 
     // If restaurant_owner, ensure only one restaurant per owner
     if (validatedData.role === 'restaurant_owner') {
+      // Check if user already has a restaurant
       const existingRestaurant = await Restaurant.findOne({ ownerId: user._id });
       if (!existingRestaurant) {
-        await Restaurant.create({
-          name: validatedData.restaurantName, // always use the provided name
-          ownerId: user._id,
-          description: 'Your restaurant description',
-          cuisine: 'Multi-cuisine',
-          address: validatedData.address || 'Your address',
-          phone: validatedData.phone,
-          email: validatedData.email,
-          image: validatedData.image || '/placeholder.jpg',
-          openingHours: '10:00-22:00',
-          deliveryTime: '30 min',
-          distance: '1 km',
-          priceRange: '₹₹',
-          status: 'approved',
-          minimumOrder: 100,
-          deliveryFee: 10,
-          coordinates: { latitude: 0, longitude: 0 },
-        });
+        // Only create restaurant if no invite code is provided
+        if (!validatedData.inviteCode) {
+          await Restaurant.create({
+            name: validatedData.restaurantName,
+            ownerId: user._id,
+            description: 'Your restaurant description',
+            cuisine: 'Multi-cuisine',
+            address: validatedData.address || 'Your address',
+            phone: validatedData.phone,
+            email: validatedData.email,
+            image: validatedData.image || '/placeholder.jpg',
+            openingHours: '10:00-22:00',
+            deliveryTime: '30 min',
+            distance: '1 km',
+            priceRange: '₹₹',
+            status: 'approved',
+            minimumOrder: 100,
+            deliveryFee: 10,
+            coordinates: { latitude: 0, longitude: 0 },
+          });
+        }
       }
     }
     
@@ -136,19 +140,28 @@ export async function POST(request: NextRequest) {
     
         console.log('📤 Returning user data:', userResponse)
     
-    if (validatedData.role === 'restaurant_owner' || validatedData.role === 'restaurant') {
-      if (!validatedData.inviteCode) {
-        return NextResponse.json({ error: 'Invite code required' }, { status: 400 });
-      }
+    // Handle invite code linking for existing restaurants
+    if (validatedData.inviteCode) {
       const codeEntry = await RestaurantUniqueCode.findOne({ uniqueCode: validatedData.inviteCode });
       if (!codeEntry) {
         return NextResponse.json({ error: 'Invalid invite code' }, { status: 400 });
       }
-      // Link the user to the restaurant by setting ownerId
-      await Restaurant.findOneAndUpdate(
-        { name: codeEntry.restaurantName },
-        { ownerId: user._id }
-      );
+      
+      // Find the restaurant and link it to the user
+      const restaurant = await Restaurant.findOne({ name: codeEntry.restaurantName });
+      if (restaurant) {
+        // Update the restaurant's ownerId to link it to this user
+        await Restaurant.findByIdAndUpdate(
+          restaurant._id,
+          { ownerId: user._id }
+        );
+        
+        // Update user role to restaurant_owner if not already
+        if (user.role !== 'restaurant_owner') {
+          await User.findByIdAndUpdate(user._id, { role: 'restaurant_owner' });
+          userResponse.role = 'restaurant_owner';
+        }
+      }
     }
     
     return NextResponse.json(
