@@ -229,11 +229,7 @@ export default function RestaurantDashboard() {
           </div>
         )}
 
-        {restaurant && (
-          <div className="text-xs text-gray-400 text-center mb-2">
-            (Debug: Showing restaurant "{restaurant.name && restaurant.name.toUpperCase()}" with ownerId {restaurant.ownerId?.toString?.() || restaurant.ownerId})
-          </div>
-        )}
+      
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -292,7 +288,14 @@ export default function RestaurantDashboard() {
                 {recentOrders.length === 0 ? (
                   <div className="text-gray-500 text-sm">No recent orders found.</div>
                 ) : (
-                  recentOrders.map((order) => {
+                  // Sort orders to show pending and active orders first
+                  [...recentOrders].sort((a, b) => {
+                    const isPendingA = a.status === 'pending' || a.status === 'ready' || a.status === 'out_for_delivery';
+                    const isPendingB = b.status === 'pending' || b.status === 'ready' || b.status === 'out_for_delivery';
+                    if (isPendingA && !isPendingB) return -1;
+                    if (!isPendingA && isPendingB) return 1;
+                    return 0;
+                  }).map((order) => {
                     const statusInfo = getStatusLabel(order.status);
                     let nextStatus = null;
                     let buttonLabel = '';

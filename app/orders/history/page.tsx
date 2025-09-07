@@ -20,26 +20,50 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useRouter } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+
+interface OrderItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 interface Order {
-  id: string
-  restaurantName: string
-  items: string[]
-  totalAmount: string
-  orderDate: string
-  deliveryDate?: string
-  status: 'delivered' | 'cancelled' | 'preparing' | 'out_for_delivery'
-  deliveryAddress: string
-  orderNumber: string
-  rating?: number
+  _id?: string;
+  id?: string;
+  orderNumber: string;
+  restaurantName: string;
+  items: OrderItem[];
+  total: number;
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  orderTime?: Date;
+  createdAt?: Date;
+  actualDeliveryTime?: Date;
+  estimatedDeliveryTime?: Date;
+  deliveryAddress: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  } | string;
+  rating?: number;
 }
 
 export default function OrderHistory() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const { addToCart, clearCart } = useCart();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -90,14 +114,20 @@ export default function OrderHistory() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const formatDate = (dateString: string | Date | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'N/A';
+    }
   }
 
   if (loading) {
@@ -182,18 +212,18 @@ export default function OrderHistory() {
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        <span>Ordered: {formatDate(order.orderDate)}</span>
+                        <span>Ordered: {formatDate(order.orderTime || order.createdAt)}</span>
                       </div>
-                      {order.deliveryDate && (
+                      {order.status === 'delivered' && order.actualDeliveryTime && (
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
-                          <span>Delivered: {formatDate(order.deliveryDate)}</span>
+                          <span>Delivered: {formatDate(order.actualDeliveryTime)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">{order.totalAmount}</div>
+                    <div className="text-2xl font-bold text-gray-900 mb-1">₹{order.total}</div>
                     {order.rating && (
                       <div className="flex items-center justify-end">
                         <Star className="h-4 w-4 text-yellow-500 mr-1" />
@@ -223,12 +253,50 @@ export default function OrderHistory() {
                   </div>
                   
                   <div className="flex items-center space-x-2 pt-2 border-t">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setDetailsOpen(true);
+                      }}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
                     </Button>
                     {order.status === 'delivered' && (
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            // Clear existing cart
+                            clearCart();
+                            
+                            // Add all items from the order to cart
+                            for (const item of order.items) {
+                              if (item.menuItemId) {
+                                await addToCart(item.menuItemId);
+                              }
+                            }
+                            
+                            // Navigate to cart
+                            router.push('/cart');
+                            
+                            toast({
+                              title: "Items added to cart",
+                              description: "Your reorder has been added to cart successfully!",
+                            });
+                          } catch (error) {
+                            console.error('Reorder error:', error);
+                            toast({
+                              title: "Reorder failed",
+                              description: "Could not add items to cart. Please try again.",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
                         <Repeat className="h-4 w-4 mr-2" />
                         Reorder
                       </Button>
@@ -255,6 +323,83 @@ export default function OrderHistory() {
           </div>
         )}
       </div>
+
+      {/* Order Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>
+              Order #{selectedOrder?.orderNumber}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <h4 className="font-medium">Restaurant</h4>
+                <p className="text-sm text-gray-700">{selectedOrder.restaurantName}</p>
+              </div>
+
+              <div className="grid gap-2">
+                <h4 className="font-medium">Order Status</h4>
+                <Badge variant="secondary" className={getStatusColor(selectedOrder.status)}>
+                  {getStatusText(selectedOrder.status)}
+                </Badge>
+              </div>
+
+              <div className="grid gap-2">
+                <h4 className="font-medium">Items Ordered</h4>
+                <div className="space-y-2">
+                  {selectedOrder.items.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>{item.name}</span>
+                      <span className="text-gray-600">₹{item.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <h4 className="font-medium">Delivery Address</h4>
+                <p className="text-sm text-gray-700">
+                  {typeof selectedOrder.deliveryAddress === 'string' 
+                    ? selectedOrder.deliveryAddress 
+                    : `${selectedOrder.deliveryAddress?.street || ''}, ${selectedOrder.deliveryAddress?.city || ''}, ${selectedOrder.deliveryAddress?.state || ''} ${selectedOrder.deliveryAddress?.zipCode || ''}`
+                  }
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <h4 className="font-medium">Order Timeline</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <div className="flex justify-between">
+                    <span>Ordered:</span>
+                    <span>{formatDate(selectedOrder.orderTime || selectedOrder.createdAt)}</span>
+                  </div>
+                  {selectedOrder.status === 'delivered' && selectedOrder.actualDeliveryTime && (
+                    <div className="flex justify-between">
+                      <span>Delivered:</span>
+                      <span>{formatDate(selectedOrder.actualDeliveryTime)}</span>
+                    </div>
+                  )}
+                  {selectedOrder.estimatedDeliveryTime && selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                    <div className="flex justify-between">
+                      <span>Estimated Delivery:</span>
+                      <span>{formatDate(selectedOrder.estimatedDeliveryTime)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <h4 className="font-medium">Total Amount</h4>
+                <p className="text-xl font-bold">₹{selectedOrder.total}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

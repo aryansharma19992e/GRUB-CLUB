@@ -50,15 +50,55 @@ export default function UserDashboard() {
     fetch(`/api/orders?userId=${user._id || user.id}&limit=1000`)
       .then(res => res.json())
       .then(data => setAllOrders(data.orders || []));
-    // Initial fetch for recent orders
-    fetch(`/api/orders?userId=${user._id || user.id}&limit=3`)
+    // Initial fetch for recent orders with priority for active orders
+    fetch(`/api/orders?userId=${user._id || user.id}&limit=5`)
       .then(res => res.json())
-      .then(data => setRecentOrders(data.orders || []));
+      .then(data => {
+        // Sort and limit the orders
+        const sortedOrders = [...(data.orders || [])].sort((a, b) => {
+          // First priority: ready and out_for_delivery
+          const isHighPriorityA = ['ready', 'out_for_delivery'].includes(a.status);
+          const isHighPriorityB = ['ready', 'out_for_delivery'].includes(b.status);
+          if (isHighPriorityA && !isHighPriorityB) return -1;
+          if (!isHighPriorityA && isHighPriorityB) return 1;
+          
+          // Second priority: pending
+          const isPendingA = a.status === 'pending';
+          const isPendingB = b.status === 'pending';
+          if (isPendingA && !isPendingB) return -1;
+          if (!isPendingA && isPendingB) return 1;
+          
+          // For same priority, show newer first
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }).slice(0, 5); // Limit to 5 orders
+        
+        setRecentOrders(sortedOrders);
+      });
     // Poll every 5 seconds for recent orders
     const interval = setInterval(() => {
-      fetch(`/api/orders?userId=${user._id || user.id}&limit=3`)
+      fetch(`/api/orders?userId=${user._id || user.id}&limit=5`)
         .then(res => res.json())
-        .then(data => setRecentOrders(data.orders || []));
+        .then(data => {
+          // Sort and limit the orders
+          const sortedOrders = [...(data.orders || [])].sort((a, b) => {
+            // First priority: ready and out_for_delivery
+            const isHighPriorityA = ['ready', 'out_for_delivery'].includes(a.status);
+            const isHighPriorityB = ['ready', 'out_for_delivery'].includes(b.status);
+            if (isHighPriorityA && !isHighPriorityB) return -1;
+            if (!isHighPriorityA && isHighPriorityB) return 1;
+            
+            // Second priority: pending
+            const isPendingA = a.status === 'pending';
+            const isPendingB = b.status === 'pending';
+            if (isPendingA && !isPendingB) return -1;
+            if (!isPendingA && isPendingB) return 1;
+            
+            // For same priority, show newer first
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }).slice(0, 5); // Limit to 5 orders
+          
+          setRecentOrders(sortedOrders);
+        });
     }, 5000);
     return () => clearInterval(interval);
   }, [user]);
@@ -402,7 +442,19 @@ export default function UserDashboard() {
                 {recentOrders.length === 0 ? (
                   <div className="text-gray-500 text-sm">No recent orders found.</div>
                 ) : (
-                  recentOrders.map((order) => {
+                  [...recentOrders]
+                    .sort((a, b) => {
+                      // Define priority order for statuses
+                      const priority = {
+                        'pending': 0,
+                        'ready': 1,
+                        'out_for_delivery': 2,
+                        'delivered': 3,
+                        'cancelled': 4
+                      };
+                      return (priority[a.status] || 99) - (priority[b.status] || 99);
+                    })
+                    .map((order) => {
                     const statusInfo = getStatusLabel(order.status);
                     return (
                       <div key={order._id || order.id || order.orderNumber} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
