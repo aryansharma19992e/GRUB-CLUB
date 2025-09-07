@@ -62,17 +62,24 @@ export async function GET(request: NextRequest) {
     // Calculate skip value for pagination
     const skip = (page - 1) * limit
     
-    // Execute query
-    const orders = await Order.find(query)
-      .sort({ orderTime: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate('userId', 'name email')
-      .populate('restaurantId', 'name')
-      .lean()
-    
-    // Get total count for pagination
-    const total = await Order.countDocuments(query)
+    // Execute query and count in parallel
+    const [orders, total] = await Promise.all([
+      Order.find(query)
+        .sort({ orderTime: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('userId', 'name email')
+        .populate('restaurantId', 'name')
+        .select('-__v') // Exclude version field
+        .lean()
+        .exec(),
+      Order.countDocuments(query)
+    ]);
+
+    // Add index hint if query includes status
+    if (query.status) {
+      Order.find(query).hint({ status: 1, orderTime: -1 });
+    }
     
     return NextResponse.json({
       orders,
@@ -82,6 +89,10 @@ export async function GET(request: NextRequest) {
         total,
         pages: Math.ceil(total / limit),
       },
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=10' // Cache for 10 seconds
+      }
     })
     
   } catch (error) {

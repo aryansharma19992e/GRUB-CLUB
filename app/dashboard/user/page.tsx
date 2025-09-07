@@ -46,37 +46,10 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    // Fetch all orders for this user for stats
-    fetch(`/api/orders?userId=${user._id || user.id}&limit=1000`)
-      .then(res => res.json())
-      .then(data => setAllOrders(data.orders || []));
+    
     // Initial fetch for recent orders with priority for active orders
-    fetch(`/api/orders?userId=${user._id || user.id}&limit=5`)
-      .then(res => res.json())
-      .then(data => {
-        // Sort and limit the orders
-        const sortedOrders = [...(data.orders || [])].sort((a, b) => {
-          // First priority: ready and out_for_delivery
-          const isHighPriorityA = ['ready', 'out_for_delivery'].includes(a.status);
-          const isHighPriorityB = ['ready', 'out_for_delivery'].includes(b.status);
-          if (isHighPriorityA && !isHighPriorityB) return -1;
-          if (!isHighPriorityA && isHighPriorityB) return 1;
-          
-          // Second priority: pending
-          const isPendingA = a.status === 'pending';
-          const isPendingB = b.status === 'pending';
-          if (isPendingA && !isPendingB) return -1;
-          if (!isPendingA && isPendingB) return 1;
-          
-          // For same priority, show newer first
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        }).slice(0, 5); // Limit to 5 orders
-        
-        setRecentOrders(sortedOrders);
-      });
-    // Poll every 5 seconds for recent orders
-    const interval = setInterval(() => {
-      fetch(`/api/orders?userId=${user._id || user.id}&limit=5`)
+    const fetchOrders = () => {
+      fetch(`/api/orders?userId=${user._id || user.id}&status=pending,ready,out_for_delivery&limit=5`)
         .then(res => res.json())
         .then(data => {
           // Sort and limit the orders
@@ -98,9 +71,32 @@ export default function UserDashboard() {
           }).slice(0, 5); // Limit to 5 orders
           
           setRecentOrders(sortedOrders);
-        });
-    }, 5000);
-    return () => clearInterval(interval);
+        })
+        .catch(error => console.error('Error fetching orders:', error));
+    };
+
+    // Initial fetch
+    fetchOrders();
+
+    // Set up polling with visibility check
+    let interval: NodeJS.Timeout;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        fetchOrders();
+        interval = setInterval(fetchOrders, 30000); // Poll every 30 seconds when visible
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    handleVisibilityChange(); // Initial setup based on current visibility
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, [user]);
 
   console.log('🔍 Dashboard - Loading:', loading, 'User:', user)
